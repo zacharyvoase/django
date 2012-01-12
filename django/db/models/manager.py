@@ -101,13 +101,13 @@ class Manager(object):
     #######################
 
     def get_empty_query_set(self):
-        return EmptyQuerySet(self.model, using=self._db)
+        return EmptyQuerySet(self.model, using=self._db, manager=self)
 
     def get_query_set(self):
         """Returns a new QuerySet object.  Subclasses can override this method
         to easily customize the behavior of the Manager.
         """
-        return QuerySet(self.model, using=self._db)
+        return QuerySet(self.model, using=self._db, manager=self)
 
     def none(self):
         return self.get_empty_query_set()

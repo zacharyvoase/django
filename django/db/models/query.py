@@ -12,7 +12,7 @@ from django.db.models.query_utils import (Q, select_related_descend,
     deferred_class_factory, InvalidQuery)
 from django.db.models.deletion import Collector
 from django.db.models import sql
-from django.utils.functional import partition
+from django.utils.functional import curry, partition
 
 # Used to control how many objects are worked with at once in some cases (e.g.
 # when deleting objects).
@@ -29,8 +29,9 @@ class QuerySet(object):
     """
     Represents a lazy database lookup for a set of objects.
     """
-    def __init__(self, model=None, query=None, using=None):
+    def __init__(self, model=None, query=None, using=None, manager=None):
         self.model = model
+        self.manager = manager
         # EmptyQuerySet instantiates QuerySet with model as None
         self._db = using
         self.query = query or sql.Query(self.model)
@@ -223,6 +224,17 @@ class QuerySet(object):
             return combined
         combined.query.combine(other.query, sql.OR)
         return combined
+
+    def __getattr__(self, attr):
+        try:
+            qmethod = getattr(self.manager, attr).im_func
+            is_querymethod = qmethod.is_querymethod
+        except AttributeError, exc:
+            raise AttributeError(attr)
+
+        if is_querymethod:
+            return curry(qmethod, self)
+        raise AttributeError(attr)
 
     ####################################
     # METHODS THAT DO DATABASE QUERIES #
@@ -856,7 +868,8 @@ class QuerySet(object):
         query = self.query.clone()
         if self._sticky_filter:
             query.filter_is_sticky = True
-        c = klass(model=self.model, query=query, using=self._db)
+        c = klass(model=self.model, query=query, using=self._db,
+                  manager=self.manager)
         c._for_write = self._for_write
         c._prefetch_related_lookups = self._prefetch_related_lookups[:]
         c.__dict__.update(kwargs)
@@ -1118,8 +1131,8 @@ class DateQuerySet(QuerySet):
 
 
 class EmptyQuerySet(QuerySet):
-    def __init__(self, model=None, query=None, using=None):
-        super(EmptyQuerySet, self).__init__(model, query, using)
+    def __init__(self, model=None, query=None, using=None, manager=None):
+        super(EmptyQuerySet, self).__init__(model, query, using, manager)
         self._result_cache = []
 
     def __and__(self, other):
@@ -1790,3 +1803,9 @@ def prefetch_one_level(instances, prefetcher, attname):
             qs._prefetch_done = True
             obj._prefetched_objects_cache[cache_name] = qs
     return all_related_objects, additional_prl
+
+
+def querymethod(func):
+    """Decorator to declare a manager method as a querymethod."""
+    func.is_querymethod = True
+    return func
