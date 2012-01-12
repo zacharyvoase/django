@@ -28,6 +28,11 @@ class CustomManagerTests(TestCase):
             unicode
         )
 
+        # non-querymethods defined on a manager are *not* available on
+        # descendant QuerySets.
+        dog_qset = Person.objects.filter(first_name__startswith="D")
+        self.assertRaises(AttributeError, lambda: dog_qset.get_fun_people)
+
         # The RelatedManager used on the 'books' descriptor extends the default
         # manager
         self.assertTrue(isinstance(p2.books, PublishedBookManager))
