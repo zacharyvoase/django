@@ -16,6 +16,18 @@ class CustomManagerTests(TestCase):
             ],
             unicode
         )
+
+        # querymethods can be called on any descendant QuerySet of the manager.
+        self.assertQuerysetEqual(
+            Person.objects.get_boring_people(), ["Droopy Dog"], unicode)
+
+        self.assertQuerysetEqual(
+            Person.objects.filter(first_name__startswith="D").get_boring_people(), [
+                "Droopy Dog"
+            ],
+            unicode
+        )
+
         # The RelatedManager used on the 'books' descriptor extends the default
         # manager
         self.assertTrue(isinstance(p2.books, PublishedBookManager))

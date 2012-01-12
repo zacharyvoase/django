@@ -17,6 +17,10 @@ class PersonManager(models.Manager):
     def get_fun_people(self):
         return self.filter(fun=True)
 
+    @models.querymethod
+    def get_boring_people(self):
+        return self.filter(fun=False)
+
 class Person(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
